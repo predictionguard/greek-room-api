@@ -25,6 +25,8 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+logs/
+storage/
 
 # PyInstaller
 #  Usually these files are written by a python script from a template
@@ -137,6 +139,7 @@ celerybeat.pid
 # Environments
 .env
 .envrc
+.env_local
 .venv
 env/
 venv/
@@ -205,3 +208,5 @@ cython_debug/
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+.DS_Store
