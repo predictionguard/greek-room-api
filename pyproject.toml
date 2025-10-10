@@ -7,8 +7,8 @@ requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.118.0",
     "fastmcp>=2.12.4",
+    "greekroom>=0.0.20",
     "loguru>=0.7.3",
-    "openai>=2.2.0",
     "predictionguard>=2.9.1",
     "python-dotenv>=1.1.1",
     "python-multipart>=0.0.20",
@@ -16,7 +16,6 @@ dependencies = [
     "streamlit>=1.50.0",
     "unicodeblock>=0.3.1",
     "uvicorn>=0.37.0",
-    "wildebeest-nlp==0.9.2",
 ]
 
 [dependency-groups]

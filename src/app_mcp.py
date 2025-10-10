@@ -9,7 +9,8 @@ from helper import PROJECT_ROOT
 from fastmcp import FastMCP
 from typing import Optional, Dict, Any, Annotated
 
-from wb_file_props import script_punct
+ # using wb_file_props directly from Greek Room PyPI package
+from greekroom.gr_utilities import wb_file_props
 
 from predictionguard import PredictionGuard
 from dotenv import load_dotenv
@@ -98,7 +99,7 @@ async def analyze_script_punct(
         logger.info(f"Analyzing file: {input_filename}")
     if input_string:
         logger.info(f"Analyzing input string: {len(input_string)}")
-    analysis_result = script_punct(
+    analysis_result = wb_file_props.script_punct(
         input_filename=input_filename,
         input_string=input_string,
         lang_code=lang_code,

@@ -14,7 +14,8 @@ from typing import Optional, Dict, Any
 import uvicorn
 import json
 
-from wb_file_props import script_punct
+ # using wb_file_props directly from Greek Room PyPI package
+from greekroom.gr_utilities import wb_file_props
 
 (PROJECT_ROOT / "logs").mkdir(exist_ok=True)
 logger.add(
@@ -78,7 +79,7 @@ async def analyze_script_punct(
         input_filename = None
         
     logger.info(f"Calling script_punct with input_filename={input_filename}, lang_code={lang_code}, lang_name={lang_name}")
-    analysis_result = script_punct(
+    analysis_result = wb_file_props.script_punct(
         input_filename=input_filename,
         input_string=input_string,
         lang_code=lang_code,
