@@ -118,10 +118,10 @@ def check_repeated_words(
             lang_name (str): The full name of the language ('English').
             project_id (str): The unique identifier for the project.
             project_name (str): The name of the project.
-            check_corpus (List[Dict]): The corpus to check, as a list of dictionaries.
-            explicit_data_filenames (Optional[Dict[str, str]], optional): Optional explicit filenames for data sources. If not provided, it will search for files owl/data/legitimate_duplicates.jsonl in directories "greekroom", "$XDG_DATA_HOME", "/usr/share", "$HOME/.local/share"
+            check_corpus (List[Dict[str, str]]): The corpus to check, as a list of dictionaries.
+            explicit_data_filenames (Optional[Dict[str], optional): Optional explicit filenames for data sources. If not provided, it will search for files owl/data/legitimate_duplicates.jsonl in directories "greekroom", "$XDG_DATA_HOME", "/usr/share", "$HOME/.local/share"
         Returns:
-            Markdown string with the results of the repeated words check.
+            Dict[str]: {"result": Markdown string with the results of the repeated words check}
     """
     
     if project_id is None:
