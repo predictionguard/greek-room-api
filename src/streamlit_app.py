@@ -81,6 +81,60 @@ def run_async(coro):
         asyncio.set_event_loop(loop)
     return loop.run_until_complete(coro)
 
+def is_markdown(text):
+    """
+    Detect if text contains markdown formatting.
+    
+    Args:
+        text: String to check for markdown patterns
+        
+    Returns:
+        bool: True if markdown patterns are detected
+    """
+    if not isinstance(text, str):
+        return False
+    
+    markdown_patterns = [
+        r'#{1,6}\s',  # Headers
+        r'\*\*.*\*\*',  # Bold
+        r'\*.*\*',  # Italic
+        r'^\s*[-*+]\s',  # Unordered lists
+        r'^\s*\d+\.\s',  # Ordered lists
+        r'\[.*\]\(.*\)',  # Links
+        r'```',  # Code blocks
+        r'`[^`]+`',  # Inline code
+        r'^\s*>',  # Blockquotes
+        r'^\s*\|.*\|',  # Tables
+    ]
+    
+    import re
+    for pattern in markdown_patterns:
+        if re.search(pattern, text, re.MULTILINE):
+            return True
+    return False
+
+def display_tool_result(result_text):
+    """
+    Display tool result with appropriate formatting.
+    
+    Args:
+        result_text: The text content to display
+    """
+    try:
+        # Try to parse as JSON for better formatting
+        result_json = json.loads(result_text)
+        st.json(result_json)
+        logger.debug("JSON result displayed")
+    except (json.JSONDecodeError, ValueError):
+        # If not JSON, check if it's markdown
+        if is_markdown(result_text):
+            st.markdown(result_text)
+            logger.debug("Markdown result displayed")
+        else:
+            # Display as plain text
+            st.text(result_text)
+            logger.debug("Text result displayed")
+
 # Sidebar for quick actions only
 with st.sidebar:
     st.header("� Quick Actions")
@@ -160,7 +214,7 @@ for message in st.session_state.messages:
                         else:
                             st.success(f"**{result['tool_name']}** executed successfully")
                             if hasattr(result['result'], 'content') and result['result'].content:
-                                st.code(result['result'].content[0].text)
+                                display_tool_result(result['result'].content[0].text)
         else:
             st.markdown(message["content"])
 
@@ -225,15 +279,8 @@ Here's a snippet of the file content for context: '{st.session_state.file_snippe
                             with st.expander(f"📊 {result['tool_name']} Results", expanded=True):
                                 if hasattr(result['result'], 'content') and result['result'].content:
                                     result_text = result['result'].content[0].text
-                                    try:
-                                        # Try to parse as JSON for better formatting
-                                        result_json = json.loads(result_text)
-                                        st.json(result_json)
-                                        logger.debug(f"JSON result displayed for {result['tool_name']}")
-                                    except (json.JSONDecodeError, ValueError):
-                                        # If not JSON, display as text
-                                        st.text(result_text)
-                                        logger.debug(f"Text result displayed for {result['tool_name']}")
+                                    display_tool_result(result_text)
+                                    logger.debug(f"Result displayed for {result['tool_name']}")
                                 else:
                                     st.write(result['result'])
                                     logger.debug(f"Raw result displayed for {result['tool_name']}")
