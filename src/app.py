@@ -22,32 +22,6 @@ from greekroom.owl import repeated_words
 # Import our custom markdown writer
 from markdown_writer import generate_markdown_string
 
-# task_s = '''{"jsonrpc": "2.0",
-#  "id": "eng-sample-01",
-#  "method": "BibleTranslationCheck",
-#  "params": [{"lang-code": "eng", "lang-name": "English",
-#              "project-id": "eng-sample",
-#              "project-name": "English Bible",
-#              "selectors": [{"tool": "GreekRoom", "checks": ["RepeatedWords"]}],
-#              "check-corpus": [{"snt-id": "GEN 1:1", "text": "In in the beginning ..."},
-#                               {"snt-id": "JHN 12:24", "text": "Truly truly, I say to you ..."}]}]}'''
-
-# data_filename_dict = repeated_words.load_data_filename()
-# corpus = repeated_words.new_corpus("eng-sample-01")
-# mcp_d, misc_data_dict, check_corpus_list = repeated_words.check_mcp(task_s, data_filename_dict, corpus)
-# print(json.dumps(mcp_d))
-# print(misc_data_dict)
-# print(check_corpus_list)
-
-# feedback = repeated_words.get_feedback(mcp_d, 'GreekRoom', 'RepeatedWords')
-# corpus = repeated_words.update_corpus_if_empty(corpus, check_corpus_list)
-# repeated_words.write_to_html(feedback, misc_data_dict, corpus, "test.html", "eng", "English", "english-01")
-# md_res = generate_markdown_string(feedback, misc_data_dict, corpus, "eng", "en", "english-01")
-
-# md_res
-
-# write_to_markdown(feedback, misc_data_dict, corpus, "test.md", "eng", "En", "English Bible")
-
 (PROJECT_ROOT / "logs").mkdir(exist_ok=True)
 logger.add(
     PROJECT_ROOT / "logs/fastapi.log",
@@ -102,7 +76,7 @@ def generate_json_repeated_words(
     return json.dumps(task)
 
 @app.post("/check-repeated-words", summary="Check for repeated words in text")
-def check_repeated_words(
+async def check_repeated_words(
         lang_code: str,
         lang_name: str,
         check_corpus: List[Dict[str, str]],        
