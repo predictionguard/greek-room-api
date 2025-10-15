@@ -10,6 +10,7 @@ import sys
 # Add src directory to path for imports
 sys.path.append(str(Path(__file__).parent))
 from helper import PROJECT_ROOT
+from chat import generate_available_tools
 
 MCP_CLIENT_FILE = PROJECT_ROOT / "src/app_mcp.py"
 
@@ -33,3 +34,6 @@ async def call_tool(
 test_string = "This is a test string."
 res = asyncio.run(call_tool(None, test_string, "en", "English"))
 pp(res)
+
+available_tools = asyncio.run(generate_available_tools(MCP_CLIENT_FILE))
+pp(available_tools)

@@ -7,13 +7,19 @@ sys.path.append(str(Path(__file__).parent))
 from helper import PROJECT_ROOT
 
 from fastmcp import FastMCP
-from typing import Optional, Dict, Any, Annotated
+from typing import Optional, Dict, Any, Annotated, List
+import json
 
  # using wb_file_props directly from Greek Room PyPI package
 from greekroom.gr_utilities import wb_file_props
+from greekroom.owl import repeated_words
+
+# Import our custom markdown writer
+from markdown_writer import generate_markdown_string
 
 from predictionguard import PredictionGuard
 from dotenv import load_dotenv
+import uuid
 
 load_dotenv()
 
@@ -78,6 +84,34 @@ async def upload_text_file(file) -> Dict[str, Any]:
             "file_type": None
         }
 
+def generate_json_repeated_words(
+        id: str,
+        lang_code: str, 
+        lang_name: str, 
+        project_id: str, 
+        project_name: str, 
+        check_corpus: List[Dict]
+        ) -> str:
+    
+    """ Generate the JSON-RPC task string for repeated words check """
+
+    task = {
+        "jsonrpc": "2.0",
+        "id": id,
+        "method": "BibleTranslationCheck",
+        "params": [{
+            "lang-code": lang_code,
+            "lang-name": lang_name,
+            "project-id": project_id,
+            "project-name": project_name,
+            "selectors": [{
+                "tool": "GreekRoom",
+                "checks": ["RepeatedWords"]
+            }],
+            "check-corpus": check_corpus
+        }]
+    }
+    return json.dumps(task)
 
 @mcp.tool(name="analyze_script_punct",
             title="Script and Punctuation Analysis",
@@ -108,6 +142,50 @@ async def analyze_script_punct(
 
     return analysis_result
 
+@mcp.tool(name="check_repeated_words", 
+          title="Check for Repeated Words",
+          description="Check for repeated words in text. It will return back a markdown string with the results.")
+async def check_repeated_words(
+    lang_code: Annotated[str, "The language code (e.g., 'en'). You can infer it based on ISO 639-3 codes based on lang_name. If ambiguous, such as whether to choose `azw` or `arb`, refer back to the user."],
+    lang_name: Annotated[str, "The full name of the language (e.g., 'English'). You can infer it based on ISO 639-3 codes. If ambiguous, such as whether to choose `Hijazi Arabic` or `Standard Arabic`, refer back to the user."],
+    check_corpus: Annotated[list[dict], "Scripture corpus to check. For example [{'snt-id': 'GEN 1:1', 'text': 'In in the beginning'}, {'snt-id': 'JHN 12:24', 'text': 'Truly truly, I say to you'}]"],
+    project_id: Annotated[Optional[str], "The unique identifier for the project. Optional unless user provides one"] = None,
+    project_name: Annotated[Optional[str], "The name of the project. Optional unless user provides one"] = None,
+    explicit_data_filenames: Annotated[Optional[list[str]], "Optional explicit filenames for data sources"] = None
+) -> Dict[str, Any]:
+    """
+    Checks for repeated words in a given scripture corpus for a specific language and project.
+    Returns a markdown string with the results of the repeated words check.
+    """
+
+    if project_id is None:
+        project_id = lang_name + "-" + str(uuid.uuid4())[:4]
+
+    id = project_id + "-" + str(uuid.uuid4())[:2]
+
+    # Assuming generate_json_repeated_words is defined elsewhere
+    task_s = generate_json_repeated_words(
+        id=id,
+        lang_code=lang_code,
+        lang_name=lang_name,
+        project_id=project_id,
+        project_name=project_name,
+        check_corpus=check_corpus
+    )
+
+    data_filename_dict = repeated_words.load_data_filename(
+        explicit_data_filenames,
+        verbose=True
+    )
+
+    corpus = repeated_words.new_corpus(id)
+    mcp_d, misc_data_dict, check_corpus_list = repeated_words.check_mcp(task_s, data_filename_dict, corpus)
+    feedback = repeated_words.get_feedback(mcp_d, 'GreekRoom', 'RepeatedWords')
+    corpus = repeated_words.update_corpus_if_empty(corpus, check_corpus_list)
+
+    res_md = generate_markdown_string(feedback, misc_data_dict, corpus, lang_code, lang_name, project_name)
+
+    return {"result": res_md}
 
 @mcp.tool(name="llm_chat",
           title="LLM Chat Completion",
