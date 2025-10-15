@@ -152,7 +152,7 @@ async def check_repeated_words(
     project_id: Annotated[Optional[str], "The unique identifier for the project. Optional unless user provides one"] = None,
     project_name: Annotated[Optional[str], "The name of the project. Optional unless user provides one"] = None,
     explicit_data_filenames: Annotated[Optional[list[str]], "Optional explicit filenames for data sources"] = None
-) -> Dict[str, Any]:
+) -> str:
     """
     Checks for repeated words in a given scripture corpus for a specific language and project.
     Returns a markdown string with the results of the repeated words check.
@@ -185,7 +185,7 @@ async def check_repeated_words(
 
     res_md = generate_markdown_string(feedback, misc_data_dict, corpus, lang_code, lang_name, project_name)
 
-    return {"result": res_md}
+    return res_md
 
 @mcp.tool(name="llm_chat",
           title="LLM Chat Completion",
