@@ -260,7 +260,7 @@ Here are some important guidelines to follow:
             return res
         except Exception as e:
             logger.error(f"Failed to get response from LLM: {e}")
-            raise
+            return f"Error getting response from LLM: {str(e)}"
     
     async def execute_tool_calls(self, response):
         """
