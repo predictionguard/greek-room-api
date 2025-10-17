@@ -134,6 +134,7 @@ async def call_tool(mcp_url: str, tool_name: str, tool_args: dict, available_too
 class ChatClient:
     """
     A chat client that integrates MCP tools with LLM services.
+    Supports multi-turn conversations with conversation history.
     """
     
     def __init__(self, mcp_url: str = None):
@@ -157,36 +158,8 @@ class ChatClient:
             raise
             
         self.available_tools = None
-        logger.debug("ChatClient initialization completed")
-    
-    async def initialize(self):
-        """Initialize the client by loading available tools."""
-        logger.info("Initializing ChatClient tools...")
-        try:
-            self.available_tools = await generate_available_tools(self.mcp_url)
-            logger.info(f"ChatClient initialized with {len(self.available_tools)} available tools")
-        except Exception as e:
-            logger.error(f"Failed to initialize ChatClient tools: {e}")
-            raise
-    
-    async def initiate_chat(self, user_query: Optional[str] = None, file_name: Optional[str] = None):
-        """
-        Initiate a chat session with the LLM.
-        
-        Args:
-            user_query (str, optional): The user's query.
-            file_name (str, optional): Uploaded file path.
-            
-        Returns:
-            dict: The LLM response including any tool calls.
-        """
-        logger.info(f"Initiating chat with query: {user_query[:100] if user_query else 'None'}...")
-        
-        if self.available_tools is None:
-            logger.info("Tools not initialized, initializing now...")
-            await self.initialize()
-            
-        system_prompt = """You are an expert bible translator and consultant.\
+        self.conversation_history = []  # Store conversation history for multi-turn
+        self.system_prompt = """You are an expert bible translator and consultant.\
 You are responsible for analyzing translation tasks and provide accurate analysis and recommendations.\
 You can either use the tools provided to you or use `llm_call` if you want to answer directly.\
 
@@ -203,13 +176,66 @@ Here are some important guidelines to follow:
 - Do not make up your own analysis, only use the tools provided.
 
 """
-        
-        messages = [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": user_query}
+        logger.debug("ChatClient initialization completed")
+    
+    async def initialize(self):
+        """Initialize the client by loading available tools."""
+        logger.info("Initializing ChatClient tools...")
+        try:
+            self.available_tools = await generate_available_tools(self.mcp_url)
+            logger.info(f"ChatClient initialized with {len(self.available_tools)} available tools")
+            # Initialize conversation with system prompt
+            if not self.conversation_history:
+                self.conversation_history = [
+                    {"role": "system", "content": self.system_prompt}
+                ]
+        except Exception as e:
+            logger.error(f"Failed to initialize ChatClient tools: {e}")
+            raise
+    
+    def reset_conversation(self):
+        """Reset the conversation history."""
+        logger.info("Resetting conversation history")
+        self.conversation_history = [
+            {"role": "system", "content": self.system_prompt}
         ]
+    
+    def get_conversation_history(self):
+        """Get the current conversation history."""
+        return self.conversation_history.copy()
+    
+    async def initiate_chat(self, user_query: Optional[str] = None, file_name: Optional[str] = None, use_history: bool = True):
+        """
+        Initiate a chat session with the LLM.
         
-        logger.debug(f"Sending request to LLM with {len(self.available_tools)} available tools")
+        Args:
+            user_query (str, optional): The user's query.
+            file_name (str, optional): Uploaded file path.
+            use_history (bool): Whether to use conversation history. Defaults to True.
+            
+        Returns:
+            dict: The LLM response including any tool calls.
+        """
+        logger.info(f"Initiating chat with query: {user_query[:100] if user_query else 'None'}...")
+        
+        if self.available_tools is None:
+            logger.info("Tools not initialized, initializing now...")
+            await self.initialize()
+        
+        # Add user message to history
+        if user_query:
+            self.conversation_history.append({"role": "user", "content": user_query})
+        
+        # Use either full history or just system + current message
+        if use_history:
+            messages = self.conversation_history.copy()
+        else:
+            messages = [
+                {"role": "system", "content": self.system_prompt},
+                {"role": "user", "content": user_query}
+            ]
+        
+        logger.debug(f"Sending request to LLM with {len(messages)} messages and {len(self.available_tools)} available tools")
         
         try:
             res = self.client.chat.completions.create(
@@ -222,18 +248,23 @@ Here are some important guidelines to follow:
                 )
             
             logger.info("Successfully received response from LLM")
-            if res.get('choices') and res['choices'][0]['message'].get('tool_calls'):
-                tool_calls = res['choices'][0]['message']['tool_calls']
+            
+            # Add assistant response to history
+            assistant_message = res['choices'][0]['message']
+            self.conversation_history.append(assistant_message)
+            
+            if assistant_message.get('tool_calls'):
+                tool_calls = assistant_message['tool_calls']
                 logger.info(f"LLM requested {len(tool_calls)} tool calls")
             
             return res
         except Exception as e:
             logger.error(f"Failed to get response from LLM: {e}")
-            raise
+            return f"Error getting response from LLM: {str(e)}"
     
     async def execute_tool_calls(self, response):
         """
-        Execute tool calls from an LLM response.
+        Execute tool calls from an LLM response and add results to conversation history.
         
         Args:
             response (dict): The LLM response containing tool calls.
@@ -265,6 +296,15 @@ Here are some important guidelines to follow:
                     'args': tool_args,
                     'result': result
                 })
+                
+                # Add tool result to conversation history
+                self.conversation_history.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.get('id', f"call_{i}"),
+                    "name": tool_name,
+                    "content": json.dumps(result.model_dump() if hasattr(result, 'model_dump') else str(result))
+                })
+                
                 logger.info(f"Successfully executed tool: {tool_name}")
             except Exception as e:
                 error_msg = f"Failed to execute tool {tool_name}: {str(e)}"
@@ -274,7 +314,98 @@ Here are some important guidelines to follow:
                     'args': tool_args,
                     'error': str(e)
                 })
+                
+                # Add error to conversation history
+                self.conversation_history.append({
+                    "role": "tool",
+                    "tool_call_id": tool_call.get('id', f"call_{i}"),
+                    "name": tool_name,
+                    "content": json.dumps({"error": str(e)})
+                })
         
         logger.info(f"Completed tool execution: {len([r for r in results if 'error' not in r])} successful, {len([r for r in results if 'error' in r])} failed")
         return results
+    
+    async def continue_conversation(self, include_tool_results: bool = True):
+        """
+        Continue the conversation after tool calls have been executed.
+        This allows the LLM to process tool results and respond.
+        
+        Args:
+            include_tool_results (bool): Whether tool results are already in history. Defaults to True.
+            
+        Returns:
+            dict: The LLM response.
+        """
+        logger.info("Continuing conversation with tool results...")
+        
+        try:
+            res = self.client.chat.completions.create(
+                model=MODEL,
+                messages=self.conversation_history,
+                tools=self.available_tools,
+                tool_choice="auto",
+                max_completion_tokens=MAX_COMPLETION_TOKENS,
+                temperature=TEMPERATURE
+            )
+            
+            logger.info("Successfully received continued response from LLM")
+            
+            # Add assistant response to history
+            assistant_message = res['choices'][0]['message']
+            self.conversation_history.append(assistant_message)
+            
+            if assistant_message.get('tool_calls'):
+                tool_calls = assistant_message['tool_calls']
+                logger.info(f"LLM requested {len(tool_calls)} additional tool calls")
+            
+            return res
+        except Exception as e:
+            logger.error(f"Failed to continue conversation: {e}")
+            raise
+    
+    async def chat(self, user_query: str, max_turns: int = 5):
+        """
+        Complete chat interaction with automatic tool execution and continuation.
+        This method handles the full conversation flow including multiple tool call rounds.
+        
+        Args:
+            user_query (str): The user's query.
+            max_turns (int): Maximum number of assistant turns. Defaults to 5.
+            
+        Returns:
+            dict: Final response with conversation summary.
+        """
+        logger.info(f"Starting complete chat interaction with max {max_turns} turns")
+        
+        # Initial query
+        response = await self.initiate_chat(user_query)
+        turn_count = 0
+        all_tool_results = []
+        
+        while turn_count < max_turns:
+            # Check if there are tool calls to execute
+            if response.get('choices') and response['choices'][0]['message'].get('tool_calls'):
+                # Execute tools
+                tool_results = await self.execute_tool_calls(response)
+                all_tool_results.extend(tool_results)
+                
+                # Continue conversation with tool results
+                response = await self.continue_conversation()
+                turn_count += 1
+            else:
+                # No more tool calls, conversation complete
+                logger.info(f"Conversation completed after {turn_count} turns")
+                break
+        
+        if turn_count >= max_turns:
+            logger.warning(f"Reached maximum turns ({max_turns})")
+        
+        return {
+            'response': response,
+            'turns': turn_count,
+            'tool_results': all_tool_results,
+            'conversation_history': self.conversation_history
+        }
+
 

@@ -10,12 +10,17 @@ from fastapi import FastAPI, HTTPException, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 import uvicorn
 import json
+import uuid
 
  # using wb_file_props directly from Greek Room PyPI package
 from greekroom.gr_utilities import wb_file_props
+from greekroom.owl import repeated_words
+
+# Import our custom markdown writer
+from markdown_writer import generate_markdown_string
 
 (PROJECT_ROOT / "logs").mkdir(exist_ok=True)
 logger.add(
@@ -43,6 +48,83 @@ app.add_middleware(
     allow_methods=["*"],  # Allows all methods
     allow_headers=["*"],  # Allows all headers
 )
+
+def generate_json_repeated_words(
+        id: str,
+        lang_code: str, 
+        lang_name: str, 
+        project_id: str, 
+        project_name: str, 
+        check_corpus: List[Dict]
+        ) -> str:
+    task = {
+        "jsonrpc": "2.0",
+        "id": id,
+        "method": "BibleTranslationCheck",
+        "params": [{
+            "lang-code": lang_code,
+            "lang-name": lang_name,
+            "project-id": project_id,
+            "project-name": project_name,
+            "selectors": [{
+                "tool": "GreekRoom",
+                "checks": ["RepeatedWords"]
+            }],
+            "check-corpus": check_corpus
+        }]
+    }
+    return json.dumps(task)
+
+@app.post("/check-repeated-words", summary="Check for repeated words in text")
+async def check_repeated_words(
+        lang_code: str,
+        lang_name: str,
+        check_corpus: List[Dict[str, str]],        
+        project_id: Optional[str]=None,
+        project_name: Optional[str]=None,
+        explicit_data_filenames: Optional[List[str]]=None
+        ) -> Dict[str, Any]:
+    
+    """
+        Checks for repeated words in a given corpus for a specific language and project.
+        Args:
+            lang_code (str): The language code (e.g., 'en').
+            lang_name (str): The full name of the language ('English').
+            project_id (str): The unique identifier for the project.
+            project_name (str): The name of the project.
+            check_corpus (List[Dict[str, str]]): The corpus to check, as a list of dictionaries.
+            explicit_data_filenames (Optional[Dict[str], optional): Optional explicit filenames for data sources. If not provided, it will search for files owl/data/legitimate_duplicates.jsonl in directories "greekroom", "$XDG_DATA_HOME", "/usr/share", "$HOME/.local/share"
+        Returns:
+            Dict[str]: {"result": Markdown string with the results of the repeated words check}
+    """
+    
+    if project_id is None:
+        project_id = lang_name + "-" + str(uuid.uuid4())[:4]
+    
+    id = project_id + "-" + str(uuid.uuid4())[:2]
+
+    task_s = generate_json_repeated_words(
+        id=id,
+        lang_code=lang_code,
+        lang_name=lang_name,
+        project_id=project_id,
+        project_name=project_name,
+        check_corpus=check_corpus
+    )
+
+    data_filename_dict = repeated_words.load_data_filename(
+        explicit_data_filenames,
+        verbose=True # we'll do verbose by default for debugging
+    )
+
+    corpus = repeated_words.new_corpus(id)
+    mcp_d, misc_data_dict, check_corpus_list = repeated_words.check_mcp(task_s, data_filename_dict, corpus)
+    feedback = repeated_words.get_feedback(mcp_d, 'GreekRoom', 'RepeatedWords')
+    corpus = repeated_words.update_corpus_if_empty(corpus, check_corpus_list)
+    
+    res_md = generate_markdown_string(feedback, misc_data_dict, corpus, lang_code, lang_name, project_name)
+
+    return {"result": res_md}
 
 @app.post("/analyze-script-punct", summary="Analyze script direction and punctuation style")
 async def analyze_script_punct(
@@ -128,5 +210,4 @@ async def upload_text_file(file: UploadFile = File(...)) -> JSONResponse:
 
 if __name__ == "__main__":
     logger.info("Starting FastAPI server")
-    import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
