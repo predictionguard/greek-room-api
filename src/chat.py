@@ -36,11 +36,11 @@ logger.info("Chat client module initialized")
 PREDICTIONGUARD_URL = os.getenv("PREDICTIONGUARD_URL", "https://api.predictionguard.com")
 API_KEY = os.getenv("PREDICTIONGUARD_API_KEY")
 MODEL = os.getenv("PREDICTIONGUARD_DEFAULT_MODEL", "gpt-oss-120b")
-MAX_COMPLETION_TOKENS = 10000
-TEMPERATURE = None
+MAX_COMPLETION_TOKENS = int(os.getenv("MAX_COMPLETION_TOKENS", 10000))
+TEMPERATURE = float(os.getenv("TEMPERATURE", 0.5))
 
 # Determine MCP URL based on current file location
-MCP_URL = PROJECT_ROOT / "src/app_mcp.py"
+MCP_URL = os.getenv("MCP_URL", "http://localhost:8000/mcp")
 
 
 async def list_tools_from_mcp(server_path: str):
@@ -59,7 +59,7 @@ async def list_tools_from_mcp(server_path: str):
             tools = await mcp_client.list_tools()
         logger.info(f"Successfully retrieved {len(tools)} tools from MCP server")
         logger.debug(f"Available tools: {[tool.name for tool in tools]}")
-        print("Available Tools:\n\n - " + '\n - '.join([tool.name for tool in tools]))
+        # print("Available Tools:\n\n - " + '\n - '.join([tool.name for tool in tools]))
         return tools
     except Exception as e:
         logger.error(f"Failed to list tools from MCP server: {e}")

@@ -1,5 +1,6 @@
 import os
 from pathlib import Path
+from fastapi import Request
 from loguru import logger
 import sys
 # Add src directory to path for imports
@@ -20,6 +21,9 @@ from markdown_writer import generate_markdown_string
 from predictionguard import PredictionGuard
 from dotenv import load_dotenv
 import uuid
+
+from starlette.requests import Request
+from starlette.responses import PlainTextResponse
 
 load_dotenv()
 
@@ -157,13 +161,13 @@ async def check_repeated_words(
     Checks for repeated words in a given scripture corpus for a specific language and project.
     Returns a markdown string with the results of the repeated words check.
     """
+    #TODO: The `repeated_words.check_mcp` needs to be refactored. It was an attempt by the Greek Room maintainers to create an MCP-compliant script. Essentially, we don't need to really generate JSON, or to `get_feedback`. We can refactor the repeated_words module to return the feedback directly.
 
     if project_id is None:
         project_id = lang_name + "-" + str(uuid.uuid4())[:4]
 
     id = project_id + "-" + str(uuid.uuid4())[:2]
 
-    # Assuming generate_json_repeated_words is defined elsewhere
     task_s = generate_json_repeated_words(
         id=id,
         lang_code=lang_code,
@@ -212,7 +216,11 @@ async def llm_chat(prompt: str) -> Dict[str, Any]:
             "status": "error",
             "message": str(e)
         }
+    
+@mcp.custom_route("/health", methods=["GET"])
+async def health_check(request: Request) -> PlainTextResponse:
+    return PlainTextResponse("OK")
 
 
 if __name__ == "__main__":
-    mcp.run()
+    mcp.run(transport="http", host="0.0.0.0", port=8000)

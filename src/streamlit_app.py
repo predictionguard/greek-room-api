@@ -60,7 +60,7 @@ async def initialize_chat_client():
     if st.session_state.chat_client is None:
         try:
             # Use absolute path for MCP server
-            mcp_path = PROJECT_ROOT / "src/app_mcp.py"
+            mcp_path = os.getenv("MCP_URL", "http://localhost:8000/mcp")
             logger.debug(f"MCP server path: {mcp_path}")
             
             st.session_state.chat_client = ChatClient(mcp_url=mcp_path)
@@ -80,6 +80,11 @@ def run_async(coro):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
     return loop.run_until_complete(coro)
+
+
+# Ensure chat client is initialized at app startup
+if not st.session_state.tools_initialized:
+    run_async(initialize_chat_client())
 
 def is_markdown(text):
     """
