@@ -23,7 +23,7 @@ ENV PATH="/root/.local/bin:${PATH}"
 # Copy application code
 COPY src/ ./src/
 COPY data/ ./data/
-COPY .env .env
+COPY .env_mcpserver .env
 
 # Create logs and storage directories
 RUN mkdir -p logs storage

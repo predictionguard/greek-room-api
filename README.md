@@ -8,12 +8,15 @@ This repository provides the FastAPI and MCP endpoints for the Greek Room tools,
 - **MCP Server**: Exposes Greek Room tools as callable MCP (Model Context Protocol) tools, enabling tool discovery and tool calls by LLMs.
 - **Streamlit Chat App**: Interactive web UI demo for uploading files, running analyses, and chatting with the system. The chat is powered by Prediction Guard LLM and can call Greek Room MCP tools for analysis.
 - **FastAPI Service**: Exposes REST endpoints for Greek Room functions.
+- **WhatsApp Bot**: Twilio WhatsApp integration for chat-based interactions using the same LLM and MCP tools.
 
 ## Key Features
 
 - **MCP Server**: Allows Greek Room tools to be discoverable and callable by LLMs programmatically.
 - **LLM Integration**: Leverages Prediction Guard LLM for chat interactions, tool calling and analysis.
 - **FastAPI Endpoints**: Provides REST endpoints for Greek Room functionalities.
+- **Streamlit UI**: User-friendly web interface for file uploads, analyses, and chat interactions.
+- **WhatsApp Bot**: Twilio integration for chat-based interactions using the same LLM and MCP tools.
 
 ## Services Overview
 
@@ -35,7 +38,7 @@ The repository includes four containerized services:
    - Interactive web UI for file uploads and chat-based analysis
    - Access at http://localhost:8501
 
-## Quick Start with Docker (Recommended)
+## Quick Start with Docker (Local)
 
 ### Prerequisites
 
@@ -103,10 +106,135 @@ docker-compose stop streamlit
 - **MCP Server**: http://localhost:8000
 - **WhatsApp Bot**: http://localhost:5001
 
-Note that the WhatsApp bot (the `webhook` endpoint) needs to be publicly accessible for receiving messages from Twilio Whatsapp (via Settings -> "When a message comes in"). 
-Locally, we can use a tool like [ngrok](https://ngrok.com/) to expose the webhook endpoint, but in production, it should be hosted on a public server with proper and secured authentications.
+## MCP Server Deployment with Authentication
 
-## Local Development Setup (Alternative)
+The MCP server includes JWT-based authentication using HMAC symmetric key verification for secure deployments.
+
+### Authentication Setup
+
+1. **Generate a secure secret key** (already configured in `.env_mcpserver`):
+   ```bash
+   python -c "import secrets; print(secrets.token_urlsafe(64))"
+   ```
+
+2. **Configure environment variables** in `.env_mcpserver`:
+   ```env
+   # FastMCP JWT Authentication (HMAC Symmetric Key)
+   JWT_SECRET_KEY=your-generated-secret-key-here
+   JWT_ALGORITHM=HS256
+   JWT_ISSUER=greek-room-mcp
+   JWT_AUDIENCE=greek-room-client
+   ```
+
+3. **Generate JWT tokens** for authorized clients:
+   ```bash
+   python src/generate_token.py --client-id "my-client" --expires-days 365
+   ```
+   
+   This will output a JWT token that clients must include in their requests. In our case, we will append this in the `.env` file under `MCP_AUTH_TOKEN`:
+   ```
+   MCP_AUTH_TOKEN=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+   ```
+
+
+### Using the Authenticated MCP Server
+
+Clients must include the JWT token and proper Accept headers in all requests to the MCP server.
+
+**Important**: FastMCP HTTP transport requires the Accept header to include **both** `application/json` and `text/event-stream`.
+
+#### Complete MCP Client Example
+
+```python
+import requests
+
+# Step 1: Initialize MCP session
+headers = {
+    "Authorization": "Bearer YOUR_JWT_TOKEN_HERE",
+    "Content-Type": "application/json",
+    "Accept": "application/json, text/event-stream"  # Both are required!
+}
+
+init_response = requests.post(
+    "http://localhost:8000/mcp",
+    json={
+        "jsonrpc": "2.0",
+        "method": "initialize",
+        "id": 1,
+        "params": {
+            "protocolVersion": "2024-11-05",
+            "capabilities": {},
+            "clientInfo": {
+                "name": "my-client",
+                "version": "1.0.0"
+            }
+        }
+    },
+    headers=headers
+)
+
+# Extract session ID from response header
+session_id = init_response.headers.get("mcp-session-id")
+
+# Step 2: Send initialized notification
+requests.post(
+    "http://localhost:8000/mcp",
+    json={
+        "jsonrpc": "2.0",
+        "method": "notifications/initialized",
+        "params": {}
+    },
+    headers={
+        **headers,
+        "mcp-session-id": session_id
+    }
+)
+
+# Step 3: Call MCP methods (e.g., list tools)
+response = requests.post(
+    "http://localhost:8000/mcp",
+    json={
+        "jsonrpc": "2.0",
+        "method": "tools/list",
+        "id": 2
+    },
+    headers={
+        **headers,
+        "mcp-session-id": session_id
+    }
+)
+```
+
+### Testing Authentication
+
+Run the test suite to verify authentication is working:
+
+```bash
+python src/test_auth.py
+```
+
+Expected results:
+- ✅ Requests without tokens → 401 Unauthorized
+- ✅ Requests with valid tokens → Authenticated
+- ✅ Requests with invalid tokens → 401 Unauthorized
+
+### Using ChatClient with Authentication
+
+```python
+from chat import ChatClient
+
+# Initialize with your pre-generated client-side MCP JWT Authentication token
+client = ChatClient(
+    mcp_url="http://localhost:8000/mcp",
+    auth_token="MCP_AUTH_TOKEN"  # Your JWT token here
+)
+
+# Initialize and run analysis
+await client.initialize()
+result = await client.chat("Check this text for repeated words: [...]")
+```
+
+## Local Development Setup
 
 If you prefer to run services locally without Docker:
 
@@ -122,13 +250,14 @@ If you prefer to run services locally without Docker:
 
 3. **Set up environment variables**:
     - Update the `PREDICTIONGUARD_API_KEY` key in the `.env` file.
+    - Configure JWT authentication variables (see MCP Server Deployment section above)
 
 4. **Run the FastAPI server**:
 	```sh
 	uvicorn src.app:app --port 8001
 	```
 
-5. **Run the MCP server**:
+5. **Run the MCP server** (with authentication):
 	```sh
 	python src/app_mcp.py
 	```
@@ -182,6 +311,9 @@ docker-compose exec [service-name] /bin/bash
 - Enhance the prompt to ensure the LLM understands how to call the tools effectively.
 - Use of structured outputs to ensure secure and predictable LLM responses.
 
+## Current Deployment on GCP Cloud Run
+- MCP Server with Authentication: <to be filled in>
+- Whatsapp Bot Webhook: <to be filled in>
 ## License
 
 MIT License
