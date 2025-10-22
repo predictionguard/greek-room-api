@@ -43,20 +43,28 @@ TEMPERATURE = float(os.getenv("TEMPERATURE", 0.5))
 MCP_URL = os.getenv("MCP_URL", "http://localhost:8000/mcp")
 
 
-async def list_tools_from_mcp(server_path: str):
+async def list_tools_from_mcp(server_path: str, auth_token: Optional[str] = None):
     """
     List available tools from the MCP server.
     
     Args:
         server_path (str): Path to the MCP server script.
+        auth_token (str, optional): JWT authentication token.
         
     Returns:
         list: List of available tools.
     """
     logger.info(f"Connecting to MCP server at: {server_path}")
     try:
-        async with MCPClient(server_path) as mcp_client:
-            tools = await mcp_client.list_tools()
+        # Pass auth token to MCPClient if provided
+        if auth_token:
+            logger.debug("Using JWT authentication for MCP connection")
+            async with MCPClient(server_path, auth=auth_token) as mcp_client:
+                tools = await mcp_client.list_tools()
+        else:
+            async with MCPClient(server_path) as mcp_client:
+                tools = await mcp_client.list_tools()
+                
         logger.info(f"Successfully retrieved {len(tools)} tools from MCP server")
         logger.debug(f"Available tools: {[tool.name for tool in tools]}")
         # print("Available Tools:\n\n - " + '\n - '.join([tool.name for tool in tools]))
@@ -66,19 +74,20 @@ async def list_tools_from_mcp(server_path: str):
         raise
 
 
-async def generate_available_tools(mcp_url: str):
+async def generate_available_tools(mcp_url: str, auth_token: Optional[str] = None):
     """
     Generates JSON for available tools from MCP that can be passed directly to PG models.
     
     Args:
         mcp_url (str): URL/path to the MCP server.
+        auth_token (str, optional): JWT authentication token.
         
     Returns:
         list: List of tools formatted for the LLM API.
     """
     logger.info(f"Generating available tools from MCP server: {mcp_url}")
     try:
-        tools = await list_tools_from_mcp(mcp_url)
+        tools = await list_tools_from_mcp(mcp_url, auth_token)
         available_tools = []
 
         for tool in tools:
@@ -96,7 +105,7 @@ async def generate_available_tools(mcp_url: str):
         raise
 
 
-async def call_tool(mcp_url: str, tool_name: str, tool_args: dict, available_tools: list):
+async def call_tool(mcp_url: str, tool_name: str, tool_args: dict, available_tools: list, auth_token: Optional[str] = None):
     """
     Calls the specified tool on the MCP server with the given arguments.
 
@@ -105,6 +114,7 @@ async def call_tool(mcp_url: str, tool_name: str, tool_args: dict, available_too
         tool_name (str): The name of the tool to call.
         tool_args (dict): Arguments to pass to the tool.
         available_tools (list): List of available tools.
+        auth_token (str, optional): JWT authentication token.
 
     Returns:
         CallToolResult: The result of the tool call.
@@ -121,8 +131,15 @@ async def call_tool(mcp_url: str, tool_name: str, tool_args: dict, available_too
         raise ValueError(error_msg)
    
     try:
-        async with MCPClient(mcp_url) as mcp_client:
-            result = await mcp_client.call_tool(tool, tool_args)
+        # Pass auth token to MCPClient if provided
+        if auth_token:
+            logger.debug("Using JWT authentication for tool call")
+            async with MCPClient(mcp_url, auth=auth_token) as mcp_client:
+                result = await mcp_client.call_tool(tool, tool_args)
+        else:
+            async with MCPClient(mcp_url) as mcp_client:
+                result = await mcp_client.call_tool(tool, tool_args)
+                
         logger.info(f"Successfully executed tool: {tool_name}")
         logger.debug(f"Tool result: {result}")
         return result
@@ -135,17 +152,32 @@ class ChatClient:
     """
     A chat client that integrates MCP tools with LLM services.
     Supports multi-turn conversations with conversation history.
+    Includes JWT authentication for secure MCP server access.
     """
     
-    def __init__(self, mcp_url: str = None):
+    def __init__(
+        self, 
+        mcp_url: str = None,
+        auth_token: str = None
+    ):
         """
         Initialize the chat client.
         
         Args:
             mcp_url (str, optional): Path to MCP server. Defaults to MCP_URL.
+            auth_token (str, optional): JWT authentication token for MCP server.
+                If not provided, client will attempt to connect without authentication.
+                Use generate_token.py with the secret key from the MCP server side to create a token if needed.
         """
         self.mcp_url = mcp_url or MCP_URL
+        self.auth_token = auth_token
+        
         logger.info(f"Initializing ChatClient with MCP URL: {self.mcp_url}")
+        
+        if auth_token:
+            logger.info("Using provided JWT authentication token")
+        else:
+            logger.warning("No authentication token provided. MCP calls may fail if server requires auth.")
         
         try:
             self.client = PredictionGuard(
@@ -182,7 +214,7 @@ Here are some important guidelines to follow:
         """Initialize the client by loading available tools."""
         logger.info("Initializing ChatClient tools...")
         try:
-            self.available_tools = await generate_available_tools(self.mcp_url)
+            self.available_tools = await generate_available_tools(self.mcp_url, self.auth_token)
             logger.info(f"ChatClient initialized with {len(self.available_tools)} available tools")
             # Initialize conversation with system prompt
             if not self.conversation_history:
@@ -203,6 +235,16 @@ Here are some important guidelines to follow:
     def get_conversation_history(self):
         """Get the current conversation history."""
         return self.conversation_history.copy()
+    
+    def set_auth_token(self, token: str):
+        """
+        Set or update the authentication token.
+        
+        Args:
+            token (str): JWT authentication token.
+        """
+        self.auth_token = token
+        logger.info("Authentication token updated")
     
     async def initiate_chat(self, user_query: Optional[str] = None, file_name: Optional[str] = None, use_history: bool = True):
         """
@@ -290,7 +332,7 @@ Here are some important guidelines to follow:
             logger.info(f"Executing tool call {i+1}/{len(tool_calls)}: {tool_name}")
             
             try:
-                result = await call_tool(self.mcp_url, tool_name, tool_args, self.available_tools)
+                result = await call_tool(self.mcp_url, tool_name, tool_args, self.available_tools, self.auth_token)
                 results.append({
                     'tool_name': tool_name,
                     'args': tool_args,
