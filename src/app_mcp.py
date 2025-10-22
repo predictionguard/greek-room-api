@@ -8,6 +8,7 @@ sys.path.append(str(Path(__file__).parent))
 from helper import PROJECT_ROOT
 
 from fastmcp import FastMCP
+from fastmcp.server.auth.providers.jwt import JWTVerifier
 from typing import Optional, Dict, Any, Annotated, List
 import json
 
@@ -40,8 +41,16 @@ logger.add(
 pg_client = PredictionGuard()
 MODEL = os.getenv("PREDICTIONGUARD_DEFAULT_MODEL", "gpt-oss-120b")
 
-# Initialize the MCP server
-mcp = FastMCP("Greek Room Analysis MCP Server")
+# Configure JWT Authentication with HMAC
+jwt_verifier = JWTVerifier(
+    public_key=os.getenv("JWT_SECRET_KEY"),  # Despite the name, this accepts symmetric secrets for HMAC
+    issuer=os.getenv("JWT_ISSUER", "greek-room-mcp"),
+    audience=os.getenv("JWT_AUDIENCE", "greek-room-client"),
+    algorithm=os.getenv("JWT_ALGORITHM", "HS256")  # Use HMAC algorithm
+)
+
+# Initialize the MCP server with authentication
+mcp = FastMCP("Greek Room Analysis MCP Server", auth=jwt_verifier)
 
 UPLOAD_FOLDER = PROJECT_ROOT / "storage"
 UPLOAD_FOLDER.mkdir(parents=True, exist_ok=True)
