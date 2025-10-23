@@ -16,7 +16,7 @@ import argparse
 sys.path.append(str(Path(__file__).parent))
 
 # Load environment variables
-load_dotenv()
+load_dotenv(".env_mcpserver")
 
 def generate_jwt_token(
     client_id: str = "default-client",
