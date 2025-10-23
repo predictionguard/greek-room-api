@@ -53,9 +53,10 @@ async def initialize_chat_client():
         try:
             logger.info("Initializing chat client for WhatsApp bot...")
             mcp_path = os.getenv("MCP_URL", "http://localhost:8000")
+            mcp_auth = os.getenv("MCP_AUTH_TOKEN", None)
             logger.debug(f"MCP server path: {mcp_path}")
 
-            chat_client = ChatClient(mcp_url=mcp_path)
+            chat_client = ChatClient(mcp_url=mcp_path, auth_token=mcp_auth)
             await chat_client.initialize()
 
             logger.info("Chat client initialized successfully")
