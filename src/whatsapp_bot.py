@@ -230,51 +230,64 @@ async def process_message(phone_number: str, message_text: str, media_url: Optio
         
         # Get response from chat client
         logger.info("Sending query to chat client...")
-        response = await chat_client.initiate_chat(user_query=query)
-        
-        # Extract assistant's message
-        assistant_message = response['choices'][0]['message']['content']
-        
-        # Execute any tool calls
-        tool_results = []
-        if response['choices'][0]['message'].get('tool_calls'):
-            logger.info("Executing tool calls...")
-            tool_results = await chat_client.execute_tool_calls(response)
-            logger.info(f"Tool execution completed: {len(tool_results)} results")
-        
-        # Format response
-        responses = []
-        
-        if assistant_message:
+
+        results = await chat_client.chat(user_query=query, max_turns=10)
+        response = results['response']
+        turn_count = results['turn_count']
+        if response:
             # Split long messages into chunks
-            message_chunks = format_response_for_whatsapp(assistant_message)
-            responses.extend(message_chunks)
+            message_chunks = format_response_for_whatsapp(response)
+            logger.info(f"Successfully processed message, sending {len(message_chunks)} response chunks over {turn_count} turns")
+            return message_chunks
+        else:
+            logger.info("No response generated from chat client")
+            return ["❌ Sorry, I couldn't generate a response. Please try again."]
         
-        # Add tool results
-        if tool_results:
-            responses.append("\n📊 *Analysis Results:*")
+        # response = await chat_client.initiate_chat(user_query=query)
+        
+        # # Extract assistant's message
+        # assistant_message = response['choices'][0]['message']['content']
+        
+        # # Execute any tool calls
+        # tool_results = []
+        # if response['choices'][0]['message'].get('tool_calls'):
+        #     logger.info("Executing tool calls...")
+        #     tool_results = await chat_client.execute_tool_calls(response)
+        #     logger.info(f"Tool execution completed: {len(tool_results)} results")
+        
+        # # Format response
+        # responses = []
+        
+        # if assistant_message:
+        #     # Split long messages into chunks
+        #     message_chunks = format_response_for_whatsapp(assistant_message)
+        #     responses.extend(message_chunks)
+        
+        # # Add tool results
+        # if tool_results:
+        #     responses.append("\n📊 *Analysis Results:*")
             
-            for result in tool_results:
-                if "error" in result:
-                    responses.append(f"❌ Error in {result['tool_name']}: {result['error']}")
-                else:
-                    result_text = ""
-                    if hasattr(result['result'], 'content') and result['result'].content:
-                        result_text = result['result'].content[0].text
-                    else:
-                        result_text = str(result['result'])
+        #     for result in tool_results:
+        #         if "error" in result:
+        #             responses.append(f"❌ Error in {result['tool_name']}: {result['error']}")
+        #         else:
+        #             result_text = ""
+        #             if hasattr(result['result'], 'content') and result['result'].content:
+        #                 result_text = result['result'].content[0].text
+        #             else:
+        #                 result_text = str(result['result'])
                     
-                    # Format tool results
-                    tool_response = f"\n🔧 *{result['tool_name']}*\n{result_text}"
-                    result_chunks = format_response_for_whatsapp(tool_response)
-                    responses.extend(result_chunks)
+        #             # Format tool results
+        #             tool_response = f"\n🔧 *{result['tool_name']}*\n{result_text}"
+        #             result_chunks = format_response_for_whatsapp(tool_response)
+        #             responses.extend(result_chunks)
         
-        # Store in session history
-        session["messages"].append({"role": "user", "content": message_text})
-        session["messages"].append({"role": "assistant", "content": assistant_message})
+        # # Store in session history
+        # session["messages"].append({"role": "user", "content": message_text})
+        # session["messages"].append({"role": "assistant", "content": assistant_message})
         
-        logger.info(f"Successfully processed message, sending {len(responses)} response chunks")
-        return responses
+        # logger.info(f"Successfully processed message, sending {len(responses)} response chunks")
+        # return responses
         
     except Exception as e:
         logger.error(f"Error processing message: {e}")
