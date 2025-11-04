@@ -212,7 +212,14 @@ Here are some important guidelines to follow:
 
 """
         if self.whatsapp:
-            self.system_prompt += "- Remember that the user is interacting with you via WhatsApp. Keep responses formatted to WhatsApp and make sure it looks great on WhatsApp.\n"
+            self.system_prompt += """- Remember that the user is interacting with you via WhatsApp. Make sure your responses are concise and formatted clearly for WhatsApp.
+- Use simple language and avoid complex formatting that may not render well on WhatsApp.
+- Keep responses brief and to the point, as WhatsApp users prefer quick interactions.   
+- Avoid using excessive emojis.
+- Avoid using Markdown formatting as it may not render properly on WhatsApp.
+- Bold important terms using asterisks (*) instead of Markdown syntax, and use underscores (_) for italics.
+- Use line breaks sparingly to enhance readability without overwhelming the user.
+            """
         logger.debug("ChatClient initialization completed")
     
     async def initialize(self):
