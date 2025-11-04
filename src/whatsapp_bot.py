@@ -297,7 +297,10 @@ def download_media(media_url: str, media_content_type: str):
     try:
         assert media_content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document", f"Only .docx files are supported but {media_content_type} was provided."
 
-        res = requests.get(media_url)
+        # authenticate with SID and auth token
+        auth = (TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+
+        res = requests.get(media_url, auth=auth)
         res.raise_for_status()
         
         filename = media_url.split("/")[-1] + ".docx"
