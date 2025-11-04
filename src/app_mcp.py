@@ -140,7 +140,7 @@ def generate_json_repeated_words(
             title="Script and Punctuation Analysis",
            description="Analyze script direction and punctuation style, either with a word document file (.docx) or a text input string.")
 async def analyze_script_punct(
-    input_filename: Annotated[Optional[str], "Path to the input text file (in '.docx'). This must be present if input_string is None"],
+    # input_filename: Annotated[Optional[str], "Path to the input text file (in '.docx'). This must be present if input_string is None"],
     input_string: Annotated[Optional[str], "Input text string to analyze. This must be present if input_filename is None"],
     lang_code: Annotated[Optional[str], "Language code for the input text. You can infer it based on ISO 639 codes"],
     lang_name: Annotated[Optional[str], "Language name for the input text. You can infer it based on ISO 639 codes"]
@@ -149,27 +149,27 @@ async def analyze_script_punct(
     Analyzes the script direction and punctuation style of a given text file and/or text input.
     """
 
-    if input_filename is None and input_string is None:
-        raise Exception("Either input_filename or input_string must be provided")
+    # if input_filename is None and input_string is None:
+    #     raise Exception("Either input_filename or input_string must be provided")
     
-    if input_filename:
-        logger.info(f"Analyzing file: {input_filename}")
+    # if input_filename:
+    #     logger.info(f"Analyzing file: {input_filename}")
     if input_string:
         logger.info(f"Analyzing input string: {len(input_string)}")
 
-    if input_filename.split(".")[-1].lower() == "doc":
-        raise Exception(".doc file format is not supported. Please use .docx format instead.")
-    elif input_filename.split(".")[-1].lower() == "docx":
-        # read the doc/docx file content
-        docx_txt = read_docx_file(input_filename)
-        # save to a temporary txt file for analysis
-        temp_txt_path = UPLOAD_FOLDER / (Path(input_filename).stem + "_temp.txt")
-        with open(temp_txt_path, "w", encoding="utf-8") as f:
-            f.write(docx_txt)
-        input_filename = temp_txt_path.as_posix()
+    # if input_filename.split(".")[-1].lower() == "doc":
+    #     raise Exception(".doc file format is not supported. Please use .docx format instead.")
+    # elif input_filename.split(".")[-1].lower() == "docx":
+    #     # read the doc/docx file content
+    #     docx_txt = read_docx_file(input_filename)
+    #     # save to a temporary txt file for analysis
+    #     temp_txt_path = UPLOAD_FOLDER / (Path(input_filename).stem + "_temp.txt")
+    #     with open(temp_txt_path, "w", encoding="utf-8") as f:
+    #         f.write(docx_txt)
+    #     input_filename = temp_txt_path.as_posix()
 
     analysis_result = wb_file_props.script_punct(
-        input_filename=input_filename,
+        input_filename=None,
         input_string=input_string,
         lang_code=lang_code,
         lang_name=lang_name
