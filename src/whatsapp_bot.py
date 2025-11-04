@@ -13,6 +13,7 @@ from twilio.rest import Client as TwilioClient
 from dotenv import load_dotenv
 from loguru import logger
 import sys
+from docx import Document
 
 # Add src directory to path for imports
 sys.path.append(str(Path(__file__).parent))
@@ -181,7 +182,6 @@ async def process_message(phone_number: str, message_text: str, media_url: Optio
     Returns:
         list: List of response messages
     """
-    response = MessagingResponse()
     logger.info(f"Processing message from {phone_number}: '{message_text[:100]}'")
     
     # Get or create user session
@@ -192,10 +192,7 @@ async def process_message(phone_number: str, message_text: str, media_url: Optio
         logger.info(f"User uploaded media: {media_url}")
         
         # return ["📁 File received! You can now ask questions about it. Try: 'Analyze this file' or 'What's the script direction?'"]
-
-        session["uploaded_file"] = download_media(media_url, media_content_type)
-
-        response.message(f"{media_content_type} file received!")
+        session["uploaded_file_content"] = download_media(media_url, media_content_type)
 
     # Handle special commands
     if message_text.lower() in ['/start', 'start', 'help', '/help']:
@@ -218,7 +215,7 @@ async def process_message(phone_number: str, message_text: str, media_url: Optio
     
     if message_text.lower() in ['/clear', 'clear', 'reset']:
         session["messages"] = []
-        session["uploaded_file"] = None
+        session["uploaded_file_content"] = None
         logger.info(f"Cleared session for {phone_number}")
         return ["🗑️ Conversation cleared! Starting fresh."]
     
@@ -227,9 +224,9 @@ async def process_message(phone_number: str, message_text: str, media_url: Optio
         query = message_text
         
         # If user has uploaded a file, include it in the query
-        if session["uploaded_file"]:
+        if session["uploaded_file_content"]:
             logger.info("Including uploaded file in analysis")
-            query += f"\n\nThe user has provided a file at: {session['uploaded_file']}. Please analyze it."
+            query += f"\n\nThe user has provided a file. This is the content of the file: ```{session['uploaded_file_content']}``. Please analyze it."
         
         # Get response from chat client
         logger.info("Sending query to chat client...")
@@ -291,6 +288,9 @@ def download_media(media_url: str, media_content_type: str):
     Args:
         media_url: URL of the media to download
         media_content_type: Content type of the media
+
+    Returns:
+        str: Text extracted from the downloaded .docx file
     """
     import requests
     
@@ -311,9 +311,30 @@ def download_media(media_url: str, media_content_type: str):
             f.write(res.content)
         
         logger.info(f"Downloaded media to {file_path}")
-        return file_path
+
+        docx_text = process_docx(file_path)
+        return docx_text
     except Exception as e:
         logger.error(f"Failed to download media: {e}")
+        raise
+
+def process_docx(file_path: Path) -> str:
+    """
+    Extract text from a .docx file.
+    
+    Args:
+        file_path: Path to the .docx file
+    Returns:
+        str: Extracted text
+    """
+    try:
+        doc = Document(file_path)
+        full_text = []
+        for para in doc.paragraphs:
+            full_text.append(para.text)
+        return '\n'.join(full_text)
+    except Exception as e:
+        logger.error(f"Failed to process .docx file: {e}")
         raise
 
 @wa_app.post("/webhook")
