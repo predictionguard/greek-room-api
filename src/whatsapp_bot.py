@@ -168,7 +168,7 @@ def format_response_for_whatsapp(text: str, max_length: int = 1600) -> list:
     return final_chunks
 
 
-async def process_message(phone_number: str, message_text: str, media_url: Optional[str] = None) -> list:
+async def process_message(phone_number: str, message_text: str, media_url: Optional[str] = None, media_content_type: Optional[str] = None) -> list:
     """
     Process incoming message and generate response.
     
@@ -176,10 +176,12 @@ async def process_message(phone_number: str, message_text: str, media_url: Optio
         phone_number: User's phone number
         message_text: The text message received
         media_url: Optional media URL (for file uploads)
-        
+        media_content_type: Optional media content type (for file uploads)
+
     Returns:
         list: List of response messages
     """
+    response = MessagingResponse()
     logger.info(f"Processing message from {phone_number}: '{message_text[:100]}'")
     
     # Get or create user session
@@ -188,9 +190,13 @@ async def process_message(phone_number: str, message_text: str, media_url: Optio
     # Handle file uploads (images of text files)
     if media_url:
         logger.info(f"User uploaded media: {media_url}")
-        session["uploaded_file"] = media_url
+        
         # return ["📁 File received! You can now ask questions about it. Try: 'Analyze this file' or 'What's the script direction?'"]
-    
+
+        session["uploaded_file"] = download_media(media_url, media_content_type)
+
+        response.message(f"{media_content_type} file received!")
+
     # Handle special commands
     if message_text.lower() in ['/start', 'start', 'help', '/help']:
         return [
@@ -278,12 +284,42 @@ async def process_message(phone_number: str, message_text: str, media_url: Optio
         return [f"❌ Sorry, I encountered an error: {str(e)}\n\nPlease try again or type 'help' for assistance."]
 
 
+def download_media(media_url: str, media_content_type: str):
+    """
+    Download media from the given URL.
+    
+    Args:
+        media_url: URL of the media to download
+        media_content_type: Content type of the media
+    """
+    import requests
+    
+    try:
+        assert media_content_type == "application/vnd.openxmlformats-officedocument.wordprocessingml.document", f"Only .docx files are supported but {media_content_type} was provided."
+
+        res = requests.get(media_url)
+        res.raise_for_status()
+        
+        filename = media_url.split("/")[-1] + ".docx"
+        file_path = PROJECT_ROOT / "downloads" / filename
+        (PROJECT_ROOT / "downloads").mkdir(exist_ok=True)
+        
+        with open(file_path, "wb") as f:
+            f.write(res.content)
+        
+        logger.info(f"Downloaded media to {file_path}")
+        return file_path
+    except Exception as e:
+        logger.error(f"Failed to download media: {e}")
+        raise
+
 @wa_app.post("/webhook")
 async def webhook(
     Body: str = Form(...),
     From: str = Form(...),
     NumMedia: int = Form(...), 
     MediaUrl0: Optional[str] = Form(None),
+    MediaContentType0: Optional[str] = Form(None)
 ):
     """
     Handle incoming WhatsApp messages via Twilio webhook.
@@ -294,14 +330,15 @@ async def webhook(
         num_media = int(NumMedia)
         from_number = From
         media_url = MediaUrl0
+        media_content_type = MediaContentType0
         
         logger.info(f"Received message from {from_number}: '{incoming_msg[:100]} with {num_media} media: {media_url}'")
         
         if media_url:
-            logger.info(f"User uploaded media: {media_url}")
+            logger.info(f"User uploaded media: {media_url} with content type: {media_content_type}")
             
         # Process the message asynchronously
-        responses = await process_message(from_number, incoming_msg, media_url)
+        responses = await process_message(from_number, incoming_msg, media_url, media_content_type)
         
         # Send first response via TwiML (immediate response)
         resp = MessagingResponse()
