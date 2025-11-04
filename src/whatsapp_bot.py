@@ -232,12 +232,15 @@ async def process_message(phone_number: str, message_text: str, media_url: Optio
         logger.info("Sending query to chat client...")
 
         results = await chat_client.chat(user_query=query, max_turns=10)
-        response = results['response']
-        turn_count = results['turn_count']
+        response = results.get('response', None)
+        turn_count = results.get('turns', None)
         if response:
             # Split long messages into chunks
             message_chunks = format_response_for_whatsapp(response)
-            logger.info(f"Successfully processed message, sending {len(message_chunks)} response chunks over {turn_count} turns")
+            if turn_count:
+                logger.info(f"Successfully processed message, sending {len(message_chunks)} response chunks over {turn_count} turns")
+            else:
+                logger.info(f"Successfully processed message, sending {len(message_chunks)} response chunks")
             return message_chunks
         else:
             logger.info("No response generated from chat client")
