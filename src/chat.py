@@ -158,7 +158,8 @@ class ChatClient:
     def __init__(
         self, 
         mcp_url: str = None,
-        auth_token: str = None
+        auth_token: str = None,
+        whatsapp: bool = True
     ):
         """
         Initialize the chat client.
@@ -168,10 +169,12 @@ class ChatClient:
             auth_token (str, optional): JWT authentication token for MCP server.
                 If not provided, client will attempt to connect without authentication.
                 Use generate_token.py with the secret key from the MCP server side to create a token if needed.
+            whatsapp (bool): Whether the query is from WhatsApp. Defaults to True.
         """
         self.mcp_url = mcp_url or MCP_URL
         self.auth_token = auth_token
-        
+        self.whatsapp = whatsapp
+
         logger.info(f"Initializing ChatClient with MCP URL: {self.mcp_url}")
         
         if auth_token:
@@ -208,6 +211,8 @@ Here are some important guidelines to follow:
 - Do not make up your own analysis, only use the tools provided.
 
 """
+        if self.whatsapp:
+            self.system_prompt += "- Remember that the user is interacting with you via WhatsApp. Keep responses formatted to WhatsApp and make sure it looks great on WhatsApp.\n"
         logger.debug("ChatClient initialization completed")
     
     async def initialize(self):
