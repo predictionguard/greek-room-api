@@ -376,9 +376,34 @@ Here are some important guidelines to follow:
                     "name": tool_name,
                     "content": json.dumps({"error": str(e)})
                 })
+    
         
         logger.info(f"Completed tool execution: {len([r for r in results if 'error' not in r])} successful, {len([r for r in results if 'error' in r])} failed")
-        return results
+
+        # Let llm process tool results
+        content = """The tool calls have been executed and their results are appended above. Please use these results to formulate your next response to the user query and the tool results."""
+        if self.whatsapp:
+            content += """ Remember to keep your responses concise and formatted clearly for WhatsApp."""
+
+        self.conversation_history.append({
+            "role": "system",
+            "content": content
+        })
+
+        response = self.client.chat.completions.create(
+            model=MODEL,
+            messages=self.conversation_history,
+            tools=self.available_tools,
+            tool_choice="auto",
+            max_completion_tokens=MAX_COMPLETION_TOKENS,
+            temperature=TEMPERATURE
+        )
+
+        # Add assistant response to history
+        assistant_message = response['choices'][0]['message']
+        self.conversation_history.append(assistant_message)
+
+        return assistant_message
     
     async def continue_conversation(self, include_tool_results: bool = True):
         """
