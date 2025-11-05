@@ -186,6 +186,7 @@ async def process_message(phone_number: str, message_text: str, media_url: Optio
     
     # Get or create user session
     session = get_user_session(phone_number)
+    session["uploaded_file_content"] = None
     
     # Handle file uploads (images of text files)
     if media_url:
