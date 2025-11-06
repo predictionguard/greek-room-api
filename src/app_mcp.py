@@ -282,10 +282,10 @@ async def check_repeated_words(
     project_id: Annotated[Optional[str], "The unique identifier for the project. Optional unless user provides one"] = None,
     project_name: Annotated[Optional[str], "The name of the project. Optional unless user provides one"] = None,
     explicit_data_filenames: Annotated[Optional[list[str]], "Optional explicit filenames for data sources"] = None
-) -> str:
+) -> Dict[str, Any]:
     """
     Checks for repeated words in a given scripture corpus for a specific language and project.
-    Returns a markdown string with the results of the repeated words check.
+    Returns a dictionary of results including a whatsapp-formatted report.
     """
     #TODO: The `repeated_words.check_mcp` needs to be refactored. It was an attempt by the Greek Room maintainers to create an MCP-compliant script. Essentially, we don't need to really generate JSON, or to `get_feedback`. We can refactor the repeated_words module to return the feedback directly.
 
