@@ -19,7 +19,7 @@ from greekroom.gr_utilities import wb_file_props
 from greekroom.owl import repeated_words
 
 # Import our custom markdown writer
-from markdown_writer import generate_markdown_string
+from markdown_writer import generate_markdown_string, generate_whatsapp_friendly_string
 
 from predictionguard import PredictionGuard
 from dotenv import load_dotenv
@@ -266,8 +266,8 @@ async def analyze_script_punct(
     res = generate_script_punct_report(analysis_result)
 
     return {
-        "analysis_report": res,
-        "note_to_LLM": "Return the analysis_report field directly back to the user, VERBATIM including the ````` markers."
+        "punctuation_analysis_report": res,
+        "note_to_LLM": "Return the punctuation_analysis_report field directly back to the user, VERBATIM including the ````` markers."
     }
 
 
@@ -313,9 +313,10 @@ async def check_repeated_words(
     feedback = repeated_words.get_feedback(mcp_d, 'GreekRoom', 'RepeatedWords')
     corpus = repeated_words.update_corpus_if_empty(corpus, check_corpus_list)
 
-    res_md = generate_markdown_string(feedback, misc_data_dict, corpus, lang_code, lang_name, project_name)
+    res_md = generate_whatsapp_friendly_string(feedback, misc_data_dict, corpus, lang_code, lang_name, project_name)
 
-    return res_md
+    return {"repeated_words_report": res_md,
+            "note_to_LLM": "Return the repeated_words_report field directly back to the user, VERBATIM including all formatting."}
 
 @mcp.tool(name="llm_chat",
           title="LLM Chat Completion",
