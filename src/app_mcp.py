@@ -263,7 +263,12 @@ async def analyze_script_punct(
     )
 
     # reformat the result (in dict) to be readable
-    return generate_script_punct_report(analysis_result)
+    res = generate_script_punct_report(analysis_result)
+
+    return {
+        "status": "success",
+        "analysis_report": res 
+    }
 
 
 
