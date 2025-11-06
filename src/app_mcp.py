@@ -266,8 +266,8 @@ async def analyze_script_punct(
     res = generate_script_punct_report(analysis_result)
 
     return {
-        "status": "success",
-        "analysis_report": res 
+        "analysis_report": res,
+        "note_to_LLM": "Return the analysis_report field directly back to the user, VERBATIM including the ````` markers."
     }
 
 
