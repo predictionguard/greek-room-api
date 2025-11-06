@@ -28,7 +28,94 @@ import uuid
 from starlette.requests import Request
 from starlette.responses import PlainTextResponse
 
+import unicodedata as ud
+
 load_dotenv()
+
+# test_dict_str = """
+# {"script-direction": {"direction": "left-to-right", "counts": {"L": 3229280, "WS": 752507, "CS": 105303, "B": 41899, "ON": 20427, "ES": 3217, "R": 21, "AL": 0}, "report": "Determined script direction for English to be left-to-right with character direction counts 3229280:21 in favor."}, "punct-style": {"quotation-pairs": [], "counts": {"\u2019": {"n_start_word": 0, "n_start2_word": 0, "n_end_word": 317, "n_end2_word": 317, "n_in_word": 1682, "total": 1999}}, "pair-counts": {}}, "number-style": {"style": {}, "counts": {}, "examples": {}}, "n-chars": 4152654, "lang-code": "eng", "lang-name": "English"}
+# """
+
+# test_dict = json.loads(test_dict_str)
+# test_dict
+
+
+# # using UD, let's find the longest unicode name
+# longest_unicode_name = ""
+# codepoint = ""
+# for codepoint in range(0x110000):
+#     try:
+#         name = ud.name(chr(codepoint))
+#         if len(name) > len(longest_unicode_name):
+#             longest_unicode_name = name
+#     except ValueError:
+#         continue
+
+# print("Longest Unicode name found:")
+# print(codepoint)
+# print(longest_unicode_name)
+# print("Length:", len(longest_unicode_name))
+
+def generate_script_punct_report(analysis_dict: Dict[str, Any]) -> str:
+    """
+    Generate a formatted text report from script and punctuation analysis results.
+    
+    Args:
+        analysis_dict: Dictionary containing script direction, punctuation style, 
+                      and number style analysis results
+    
+    Returns:
+        Formatted string report
+    """
+    report_lines = ["General"]
+    
+    # Language info
+    lang_code = analysis_dict.get("lang-code", "")
+    lang_name = analysis_dict.get("lang-name", "")
+    report_lines.append(f"Language code: {lang_code}")
+    report_lines.append(f"Language name: {lang_name}")
+    
+    # Script direction section
+    script_dir = analysis_dict.get("script-direction", {})
+    report_lines.append("Script direction")
+    report_lines.append(f"Direction: {script_dir.get('direction', 'N/A')}")
+    report_lines.append(f"Counts: {script_dir.get('counts', {})}")
+    report_lines.append(f"Report: {script_dir.get('report', 'N/A')}")
+    
+    # Punctuation style section
+    punct_style = analysis_dict.get("punct-style", {})
+    report_lines.append("Punctuation style")
+    report_lines.append("\t Counts")
+    
+    # # Table header
+    # report_lines.append("Punct\tUnicode name\tTotal\tStart+\tStart\tInside\tEnd\tEnd+")
+    
+    # Punctuation rows
+    punct_counts = punct_style.get("counts", {})
+    for punct_char, data in punct_counts.items():
+        # Get Unicode name (simplified for now)
+        unicode_name = ud.name(punct_char, "")
+        total = data.get("total")
+        start_plus = data.get("n_start2_word")
+        start = data.get("n_start_word")
+        inside = data.get("n_in_word")
+        end = data.get("n_end_word")
+        end_plus = data.get("n_end2_word")
+        
+        report_lines.append(f"""\t\t Punct: {punct_char}
+\t\t Unicode Name: {unicode_name}
+\t\t Total: {total}
+\t\t Start+: {start_plus}
+\t\t Start: {start}
+\t\t Inside: {inside}
+\t\t End: {end}
+\t\t End+: {end_plus}
+""")
+
+    # TODO: To add in Digital Number Style section if needed
+
+    # return as a 
+    return "```" + "\n".join(report_lines) + "```"
 
 (PROJECT_ROOT / "logs").mkdir(exist_ok=True)
 logger.add(
@@ -175,7 +262,10 @@ async def analyze_script_punct(
         lang_name=lang_name
     )
 
-    return analysis_result
+    # reformat the result (in dict) to be readable
+    return generate_script_punct_report(analysis_result)
+
+
 
 @mcp.tool(name="check_repeated_words", 
           title="Check for Repeated Words",
