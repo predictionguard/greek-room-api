@@ -255,7 +255,7 @@ async def analyze_script_punct(
     #         f.write(docx_txt)
     #     input_filename = temp_txt_path.as_posix()
 
-    analysis_result = wb_file_props.script_punct(
+    analysis_result = wb_file_props.script_props(
         input_filename=None,
         input_string=input_string,
         lang_code=lang_code,

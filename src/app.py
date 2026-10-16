@@ -161,7 +161,7 @@ async def analyze_script_punct(
         input_filename = None
         
     logger.info(f"Calling script_punct with input_filename={input_filename}, lang_code={lang_code}, lang_name={lang_name}")
-    analysis_result = wb_file_props.script_punct(
+    analysis_result = wb_file_props.script_props(
         input_filename=input_filename,
         input_string=input_string,
         lang_code=lang_code,

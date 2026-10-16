@@ -695,7 +695,7 @@ dev = [
 requires-dist = [
     { name = "fastapi", specifier = ">=0.118.0" },
     { name = "fastmcp", specifier = ">=2.12.4" },
-    { name = "greekroom", specifier = ">=0.0.20" },
+    { name = "greekroom", specifier = "==0.1.5" },
     { name = "loguru", specifier = ">=0.7.3" },
     { name = "predictionguard", specifier = ">=2.9.1" },
     { name = "python-docx", specifier = ">=1.2.0" },
@@ -713,17 +713,18 @@ dev = [{ name = "ipykernel", specifier = ">=6.30.1" }]
 
 [[package]]
 name = "greekroom"
-version = "0.0.20"
+version = "0.1.5"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "regex" },
+    { name = "tqdm" },
     { name = "unicodeblock" },
     { name = "uroman" },
     { name = "wheel" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/21/51/0c36dce1765edb8875adbe837e39a747ba99a4127ebb177637d46f3b1711/greekroom-0.0.20.tar.gz", hash = "sha256:7d22881f98e595f1cf72f1d1c845abbb51d3f019e956167756d4ccced88df95a", size = 20512, upload-time = "2025-09-11T04:41:20.555Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/25/c3/241f28d8624975fb944c750630240e1764e35e568630c2e9a12cbfc35827/greekroom-0.1.5.tar.gz", hash = "sha256:9ed9aa538649a692cdfef1264c0222d806ad11f50cf3c7ed2467b29d43b45b89", size = 623905, upload-time = "2026-09-12T13:36:04.797Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/9b/6f/673381dfa7d381ebf0ca034531b11ea3fd8cdb8447db111b9e327b32c128/greekroom-0.0.20-py3-none-any.whl", hash = "sha256:d2d59ff8824249d7ef21e6cc5f616c09af67e6d24d171a1c13cea2be67d1094b", size = 25880, upload-time = "2025-09-11T04:41:19.237Z" },
+    { url = "https://files.pythonhosted.org/packages/24/0b/3dd8644ecde87730253eeddc1806ed7c62b55012690870aff2e20ce8aa40/greekroom-0.1.5-py3-none-any.whl", hash = "sha256:d5c818dd99365b7ca51d26b7e8b8553bf7df1bb26382d12c560e7cb2984b3878", size = 664371, upload-time = "2026-09-12T13:36:03.343Z" },
 ]
 
 [[package]]
@@ -2439,6 +2440,18 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/e8/59/593bd0f40f7355806bf6573b47b8c22f8e1374c9b6fd03114bd6b7a3dcfd/tornado-6.5.2-cp39-abi3-win32.whl", hash = "sha256:c6f29e94d9b37a95013bb669616352ddb82e3bfe8326fccee50583caebc8a5f0", size = 445023, upload-time = "2025-08-08T18:26:56.677Z" },
     { url = "https://files.pythonhosted.org/packages/c7/2a/f609b420c2f564a748a2d80ebfb2ee02a73ca80223af712fca591386cafb/tornado-6.5.2-cp39-abi3-win_amd64.whl", hash = "sha256:e56a5af51cc30dd2cae649429af65ca2f6571da29504a07995175df14c18f35f", size = 445427, upload-time = "2025-08-08T18:26:57.91Z" },
     { url = "https://files.pythonhosted.org/packages/5e/4f/e1f65e8f8c76d73658b33d33b81eed4322fb5085350e4328d5c956f0c8f9/tornado-6.5.2-cp39-abi3-win_arm64.whl", hash = "sha256:d6c33dc3672e3a1f3618eb63b7ef4683a7688e7b9e6e8f0d9aa5726360a004af", size = 444456, upload-time = "2025-08-08T18:26:59.207Z" },
+]
+
+[[package]]
+name = "tqdm"
+version = "4.70.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "colorama", marker = "sys_platform == 'win32'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/0d/ea/b2a5bd54b28a324dae8211928b2d730b6547500342c7e6c6dea08bd0a485/tqdm-4.70.1.tar.gz", hash = "sha256:cefd0eca11b2a37a3aee776544d4f4ae913f02688135b5556b8788dfa474afc4", size = 171846, upload-time = "2026-09-11T07:25:16.601Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a7/03/921a3d3c75785aca9ebfbfcabfbc3a1be12e2ab5265deb026d55a5a3f83e/tqdm-4.70.1-py3-none-any.whl", hash = "sha256:c293e525e6fef9c20e8728fd4612df02a0aa31bb5fe91ecd93e123b1b7bffa73", size = 80199, upload-time = "2026-09-11T07:25:14.599Z" },
 ]
 
 [[package]]
